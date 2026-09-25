@@ -1,4 +1,4 @@
-name: 🚨 Hà Nội Extreme Weather Alert
+﻿name: 🚨 Hà Nội Extreme Weather Alert
 
 on:
   schedule:
@@ -11,41 +11,41 @@ on:
 
 jobs:
   check-and-alert:
+    name: Quét thiên tai và thời tiết bất thường
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
-      - name: 📥 Checkout code
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Cài đặt Python
+      - name: 🐍 Cài đặt Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: 📦 Cài đặt thư viện
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r weather_bot/requirements.txt
 
-      - name: 🔄 Khôi phục bộ nhớ trạng thái (Chống spam tin nhắn)
+      - name: 🔄 Khôi phục bộ nhớ trạng thái (Chống spam)
         uses: actions/cache@v4
         with:
-          path: alert_state.json
+          path: weather_bot/alert_state.json
           key: alert-state-${{ github.run_id }}
           restore-keys: |
             alert-state-
 
-      - name: 🔍 Quét thời tiết bất thường & Phát cảnh báo nếu có hiểm họa
+      - name: 🚨 Quét hiểm họa & Phát cảnh báo khẩn cấp
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python weather_alert.py
+        run: python weather_bot/weather_alert.py
 
       - name: 💾 Lưu trạng thái cảnh báo mới
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: alert_state.json
+          path: weather_bot/alert_state.json
           key: alert-state-${{ github.run_id }}
