@@ -2,11 +2,8 @@
 
 on:
   schedule:
-    # Quét tự động mỗi 1.5 giờ (90 phút/lần)
-    # Mốc 1: Phút 0 của các giờ 0, 3, 6, 9, 12, 15, 18, 21 UTC
-    - cron: '0 0,3,6,9,12,15,18,21 * * *'
-    # Mốc 2: Phút 30 của các giờ 1, 4, 7, 10, 13, 16, 19, 22 UTC
-    - cron: '30 1,4,7,10,13,16,19,22 * * *'
+    # Quét tự động mỗi 10 phút một lần
+    - cron: '*/10 * * * *'
   workflow_dispatch: # Cho phép bấm nút test thủ công trên GitHub
 
 jobs:

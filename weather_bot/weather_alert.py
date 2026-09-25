@@ -23,7 +23,7 @@ TIMEZONE = pytz.timezone("Asia/Ho_Chi_Minh")
 
 # File lưu trạng thái để tránh spam liên tục khi bão kéo dài
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alert_state.json")
-COOLDOWN_HOURS = 3.5  # Khoảng cách tối thiểu giữa 2 lần cảnh báo cùng loại (tiếng)
+COOLDOWN_HOURS = 1.0  # Khoảng cách tối thiểu giữa 2 lần cảnh báo cùng loại (tiếng)
 
 
 def get_weather_data() -> dict:
