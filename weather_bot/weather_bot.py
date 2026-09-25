@@ -184,23 +184,9 @@ def format_intraday_forecast(forecast_data: dict, now: datetime) -> str:
         f_pop = round(item.get("pop", 0) * 100)
         rain_3h = item.get("rain", {}).get("3h", 0.0)
 
-        # Icon buổi
-        if dt_local.hour < 11:
-            time_icon = "🌅"
-        elif dt_local.hour < 14:
-            time_icon = "☀️"
-        elif dt_local.hour < 17:
-            time_icon = "🌤️"
-        elif dt_local.hour < 19:
-            time_icon = "🌆"
-        elif dt_local.hour < 22:
-            time_icon = "🌃"
-        else:
-            time_icon = "🌙"
-
         extra_tag = ""
         if 17 <= dt_local.hour <= 19:
-            extra_tag = " ⚠️ Tan tầm" if f_pop >= 40 else " 🚗 Tan tầm"
+            extra_tag = " ⚠️ [Tan tầm]" if f_pop >= 40 else " [Tan tầm]"
 
         rain_detail = ""
         if rain_3h > 0:
@@ -208,7 +194,7 @@ def format_intraday_forecast(forecast_data: dict, now: datetime) -> str:
         elif f_pop >= 20:
             rain_detail = f" ({f_pop}% mưa)"
 
-        lines.append(f"  {time_icon} {hour_str}  {f_icon} {f_temp}°C{rain_detail}{extra_tag}")
+        lines.append(f"  • {hour_str}  {f_icon} {f_temp}°C{rain_detail}{extra_tag}")
 
     content = "\n".join(lines) if lines else "  Chưa có dữ liệu dự báo cho mốc này."
     return f"{section_title}\n{content}"
@@ -364,7 +350,7 @@ def get_advice(data: dict, air_info: dict, three_days: list, now: datetime) -> s
         tips.append("💨 Gió giật mạnh, cẩn thận cây đổ hoặc vật rơi khi di chuyển.")
 
     if not tips:
-        tips.append("😊 Thời tiết thuận lợi, chúc bạn một ngày làm việc tràn đầy năng lượng!")
+        tips.append("Thời tiết thuận lợi, chúc bạn một ngày tốt lành!")
 
     return "\n".join(tips)
 
@@ -420,7 +406,7 @@ def format_message(data: dict) -> str:
 {icon} *{desc}*
 🌡️ Nhiệt độ: *{temp}°C* (cảm giác như {feels}°C)
 💧 Độ ẩm: {humidity}% | 🌬️ Gió: {wind_spd} km/h ({wind_dir})
-🍃 Không khí: {air_info['summary']}
+🌫️ Không khí: {air_info['summary']}
 
 {intraday_text}
 
