@@ -1,0 +1,51 @@
+name: 🚨 Hà Nội Extreme Weather Alert
+
+on:
+  schedule:
+    # Quét tự động mỗi 1.5 giờ (90 phút/lần)
+    # Mốc 1: Phút 0 của các giờ 0, 3, 6, 9, 12, 15, 18, 21 UTC
+    - cron: '0 0,3,6,9,12,15,18,21 * * *'
+    # Mốc 2: Phút 30 của các giờ 1, 4, 7, 10, 13, 16, 19, 22 UTC
+    - cron: '30 1,4,7,10,13,16,19,22 * * *'
+  workflow_dispatch: # Cho phép bấm nút test thủ công trên GitHub
+
+jobs:
+  check-and-alert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Cài đặt thư viện
+        run: |
+          pip install -r requirements.txt
+
+      - name: 🔄 Khôi phục bộ nhớ trạng thái (Chống spam tin nhắn)
+        uses: actions/cache@v4
+        with:
+          path: alert_state.json
+          key: alert-state-${{ github.run_id }}
+          restore-keys: |
+            alert-state-
+
+      - name: 🔍 Quét thời tiết bất thường & Phát cảnh báo nếu có hiểm họa
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python weather_alert.py
+
+      - name: 💾 Lưu trạng thái cảnh báo mới
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: alert_state.json
+          key: alert-state-${{ github.run_id }}

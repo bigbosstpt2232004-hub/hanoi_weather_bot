@@ -1,0 +1,35 @@
+name: 🌤️ Hà Nội Daily Weather Notification
+
+on:
+  schedule:
+    # 06:00 AM (UTC+7) = 23:00 UTC hôm trước
+    - cron: '0 23 * * *'
+    # 12:00 PM (UTC+7) = 05:00 UTC cùng ngày
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Cho phép bấm nút test thủ công trên GitHub
+
+jobs:
+  send-weather-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Cài đặt thư viện
+        run: |
+          pip install -r requirements.txt
+
+      - name: 🚀 Gửi thông báo thời tiết đến Telegram
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python weather_bot.py
