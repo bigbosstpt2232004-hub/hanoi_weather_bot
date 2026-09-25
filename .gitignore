@@ -1,0 +1,20 @@
+﻿# Chỉ theo dõi weather_bot và .github
+/*
+!.github/
+!weather_bot/
+!.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Môi trường
+.env
+*.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
