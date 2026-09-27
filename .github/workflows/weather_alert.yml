@@ -1,10 +1,8 @@
-﻿name: 🚨 Hà Nội Extreme Weather Alert
+name: 🚨 Hà Nội Extreme Weather Alert
 
 on:
-  schedule:
-    # Quét tự động mỗi 10 phút một lần
-    - cron: '*/10 * * * *'
-  workflow_dispatch: # Cho phép bấm nút test thủ công trên GitHub
+  # Kích hoạt quét định kỳ chuẩn xác qua cron-job.org hoặc test thủ công từ GitHub
+  workflow_dispatch:
 
 jobs:
   check-and-alert:
