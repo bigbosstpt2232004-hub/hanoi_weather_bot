@@ -1,13 +1,7 @@
 name: 🌤️ Hà Nội Weather Notification
 
 on:
-  # 6:00 AM GMT+7  = 23:00 UTC (ngày hôm trước)
-  # 12:00 PM GMT+7  = 05:00 UTC
-  schedule:
-    - cron: "0 23 * * *"
-    - cron: "0 5 * * *"
-
-  # Cho phép chạy thủ công từ GitHub để test
+  # Kích hoạt tự động chuẩn xác qua cron-job.org hoặc chạy thủ công từ GitHub
   workflow_dispatch:
 
 jobs:
