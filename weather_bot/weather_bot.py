@@ -99,8 +99,35 @@ def format_wind_direction(degrees: float) -> str:
     return directions[idx]
 
 
+def pm25_to_us_aqi(pm25: float) -> tuple[int, str, bool]:
+    """
+    Quy đổi nồng độ bụi mịn PM2.5 (µg/m³) sang chỉ số US EPA AQI chuẩn (0 - 500).
+    Trả về: (aqi_score, label, is_warning)
+    """
+    c = round(pm25, 1)
+    if c <= 0:
+        return 0, "Tốt 🟢", False
+
+    # (C_low, C_high, I_low, I_high, label, is_warning)
+    table = [
+        (0.0, 12.0, 0, 50, "Tốt 🟢", False),
+        (12.1, 35.4, 51, 100, "Trung bình 🟡", False),
+        (35.5, 55.4, 101, 150, "Kém 🟠", True),
+        (55.5, 150.4, 151, 200, "Xấu 🔴", True),
+        (150.5, 250.4, 201, 300, "Rất xấu 🟣", True),
+        (250.5, 500.4, 301, 500, "Nguy hại 🟤", True),
+    ]
+
+    for c_low, c_high, i_low, i_high, label, warn in table:
+        if c_low <= c <= c_high:
+            aqi = round(((i_high - i_low) / (c_high - c_low)) * (c - c_low) + i_low)
+            return aqi, label, warn
+
+    return 500, "Nguy hại 🟤", True
+
+
 def parse_air_quality(air_data: dict) -> dict:
-    """Phân tích chỉ số ô nhiễm không khí (AQI & PM2.5)."""
+    """Phân tích chỉ số ô nhiễm không khí theo chuẩn US EPA AQI (0 - 500) & PM2.5."""
     if not air_data or "list" not in air_data or not air_data["list"]:
         return {
             "aqi": 0,
@@ -111,18 +138,9 @@ def parse_air_quality(air_data: dict) -> dict:
         }
 
     item = air_data["list"][0]
-    aqi = item["main"]["aqi"]
     pm2_5 = item["components"].get("pm2_5", 0.0)
+    aqi, label, is_warning = pm25_to_us_aqi(pm2_5)
 
-    # Thang đánh giá AQI của OpenWeatherMap (1 đến 5)
-    levels = {
-        1: ("Tốt 🟢", False),
-        2: ("Khá 🟡", False),
-        3: ("Trung bình 🟠", False),
-        4: ("Kém 🔴", True),
-        5: ("Rất có hại 🟣", True),
-    }
-    label, is_warning = levels.get(aqi, ("Trung bình", False))
     warning_icon = " ⚠️" if is_warning else ""
     summary = f"{label} (AQI: {aqi} | PM2.5: {pm2_5:.1f} µg/m³){warning_icon}"
 

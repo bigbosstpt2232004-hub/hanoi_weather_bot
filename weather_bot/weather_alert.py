@@ -65,6 +65,33 @@ def get_weather_data() -> dict:
     return {"current": current, "forecast": forecast, "air": air}
 
 
+def pm25_to_us_aqi(pm25: float) -> tuple[int, str, bool]:
+    """
+    Quy đổi nồng độ bụi mịn PM2.5 (µg/m³) sang chỉ số US EPA AQI chuẩn (0 - 500).
+    Trả về: (aqi_score, label, is_warning)
+    """
+    c = round(pm25, 1)
+    if c <= 0:
+        return 0, "Tốt 🟢", False
+
+    # (C_low, C_high, I_low, I_high, label, is_warning)
+    table = [
+        (0.0, 12.0, 0, 50, "Tốt 🟢", False),
+        (12.1, 35.4, 51, 100, "Trung bình 🟡", False),
+        (35.5, 55.4, 101, 150, "Kém 🟠", True),
+        (55.5, 150.4, 151, 200, "Xấu 🔴", True),
+        (150.5, 250.4, 201, 300, "Rất xấu 🟣", True),
+        (250.5, 500.4, 301, 500, "Nguy hại 🟤", True),
+    ]
+
+    for c_low, c_high, i_low, i_high, label, warn in table:
+        if c_low <= c <= c_high:
+            aqi = round(((i_high - i_low) / (c_high - c_low)) * (c - c_low) + i_low)
+            return aqi, label, warn
+
+    return 500, "Nguy hại 🟤", True
+
+
 def detect_threats(data: dict) -> list:
     """Kiểm tra các ngưỡng thiên tai, bão lũ, thời tiết cực đoan tại Hà Nội."""
     threats = []
@@ -132,12 +159,13 @@ def detect_threats(data: dict) -> list:
     air_list = data.get("air", {}).get("list", [])
     if air_list:
         pm2_5 = air_list[0].get("components", {}).get("pm2_5", 0)
-        aqi = air_list[0].get("main", {}).get("aqi", 0)
-        if aqi == 5 or pm2_5 >= 150:
+        aqi_ow = air_list[0].get("main", {}).get("aqi", 0)
+        us_aqi, aqi_label, _ = pm25_to_us_aqi(pm2_5)
+        if us_aqi >= 201 or aqi_ow == 5 or pm2_5 >= 150:
             threats.append({
                 "type": "POLLUTION",
                 "title": "🟣 Ô NHIỄM KHÔNG KHÍ Ở MỨC NGUY HẠI",
-                "detail": f"Chỉ số AQI: {aqi} | Bụi mịn PM2.5: {round(pm2_5, 1)} µg/m³ (Rất độc hại).",
+                "detail": f"Chỉ số AQI: {us_aqi} ({aqi_label}) | Bụi mịn PM2.5: {round(pm2_5, 1)} µg/m³ (Rất độc hại).",
                 "guide": (
                     "• Hạn chế tối đa các hoạt động thể dục, làm việc ngoài trời.\n"
                     "• Bắt buộc đeo khẩu trang chuyên dụng (N95/KN95) khi phải ra ngoài."
