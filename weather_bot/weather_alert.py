@@ -264,17 +264,36 @@ def build_alert_message(threats: list, data: dict) -> str:
 
 
 def send_telegram(message: str) -> None:
-    """Gửi cảnh báo khẩn cấp đến Telegram."""
+    """Gửi cảnh báo khẩn cấp đến một hoặc nhiều Telegram Chat / Group."""
+    chat_ids = [
+        cid.strip()
+        for cid in (TELEGRAM_CHAT_ID or "").replace(";", ",").split(",")
+        if cid.strip()
+    ]
+    if not chat_ids:
+        print("⚠️ Không tìm thấy Chat ID nào để gửi cảnh báo.")
+        return
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }
-    resp = requests.post(url, json=payload, timeout=10)
-    resp.raise_for_status()
-    print(f"🚨 ĐÃ PHÁT CẢNH BÁO KHẨN CẤP ĐẾN TELEGRAM! (Status: {resp.status_code})")
+    success_count = 0
+
+    for chat_id in chat_ids:
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }
+        try:
+            resp = requests.post(url, json=payload, timeout=10)
+            resp.raise_for_status()
+            print(f"🚨 ĐÃ PHÁT CẢNH BÁO KHẨN CẤP ĐẾN TELEGRAM [{chat_id}]! (Status: {resp.status_code})")
+            success_count += 1
+        except Exception as e:
+            print(f"❌ Lỗi phát cảnh báo đến Telegram [{chat_id}]: {e}")
+
+    if success_count == 0 and chat_ids:
+        raise RuntimeError("❌ Không thể gửi cảnh báo đến bất kỳ Chat ID nào.")
 
 
 def main():

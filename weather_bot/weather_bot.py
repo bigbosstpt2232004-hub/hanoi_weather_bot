@@ -428,17 +428,36 @@ def format_message(data: dict) -> str:
 # ──────────────────────────────────────────
 
 def send_telegram(message: str) -> None:
-    """Gửi tin nhắn đến Telegram Chat."""
+    """Gửi tin nhắn đến một hoặc nhiều Telegram Chat / Group."""
+    chat_ids = [
+        cid.strip()
+        for cid in (TELEGRAM_CHAT_ID or "").replace(";", ",").split(",")
+        if cid.strip()
+    ]
+    if not chat_ids:
+        print("⚠️ Không tìm thấy Chat ID nào để gửi tin nhắn.")
+        return
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }
-    resp = requests.post(url, json=payload, timeout=10)
-    resp.raise_for_status()
-    print(f"✅ Đã gửi tin nhắn Telegram thành công! (status: {resp.status_code})")
+    success_count = 0
+
+    for chat_id in chat_ids:
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }
+        try:
+            resp = requests.post(url, json=payload, timeout=10)
+            resp.raise_for_status()
+            print(f"✅ Đã gửi tin nhắn đến Telegram [{chat_id}] thành công! (status: {resp.status_code})")
+            success_count += 1
+        except Exception as e:
+            print(f"❌ Lỗi gửi tin nhắn đến Telegram [{chat_id}]: {e}")
+
+    if success_count == 0 and chat_ids:
+        raise RuntimeError("❌ Không thể gửi tin nhắn đến bất kỳ Chat ID nào.")
 
 
 # ──────────────────────────────────────────

@@ -44,7 +44,7 @@ Bot tự động gửi thông báo thời tiết Hà Nội mỗi sáng lúc **6:
    |---|---|
    | `OPENWEATHER_API_KEY` | API key từ Bước 1 |
    | `TELEGRAM_BOT_TOKEN` | Bot token từ Bước 2 |
-   | `TELEGRAM_CHAT_ID` | Chat ID từ Bước 2 |
+   | `TELEGRAM_CHAT_ID` | Chat ID từ Bước 2 (hoặc nhiều ID ngăn cách bởi dấu phẩy, ví dụ: `id1,id2`) |
 
 ### Bước 4: Kích Hoạt & Test
 
