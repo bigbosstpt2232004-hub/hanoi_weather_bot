@@ -255,10 +255,15 @@ def parse_3day_forecast(forecast_data: dict, now: datetime) -> list:
         # Xác suất mưa (%)
         days_data[day_key]["pops"].append(item.get("pop", 0))
 
-        # Cảnh báo dông bão: mã 2xx (Thunderstorm), hoặc mưa rất to 502-504, hoặc gió giật >= 45 km/h
+        # Cảnh báo dông bão: chỉ bật khi gió giật >= 45 km/h, hoặc mưa rất lớn >= 25mm/3h,
+        # hoặc có dông (2xx) đi kèm gió giật >= 38 km/h hoặc lượng mưa >= 15mm/3h
         weather_id = item["weather"][0]["id"]
         gust = item.get("wind", {}).get("gust", 0) * 3.6
-        if (200 <= weather_id <= 232) or (gust >= 45) or (weather_id in [502, 503, 504]):
+        if (
+            gust >= 45
+            or rain_3h >= 25
+            or (200 <= weather_id <= 232 and (gust >= 38 or rain_3h >= 15))
+        ):
             days_data[day_key]["storm"] = True
 
         days_data[day_key]["weather_descs"].append(item["weather"][0]["description"])

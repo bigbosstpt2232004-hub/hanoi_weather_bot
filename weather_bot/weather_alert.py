@@ -23,7 +23,7 @@ TIMEZONE = pytz.timezone("Asia/Ho_Chi_Minh")
 
 # File lưu trạng thái để tránh spam liên tục khi bão kéo dài
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alert_state.json")
-COOLDOWN_HOURS = 1.0  # Khoảng cách tối thiểu giữa 2 lần cảnh báo cùng loại (tiếng)
+COOLDOWN_HOURS = 4.0  # Khoảng cách tối thiểu giữa 2 lần cảnh báo cùng loại (tiếng)
 
 
 def get_weather_data() -> dict:
@@ -93,7 +93,7 @@ def pm25_to_us_aqi(pm25: float) -> tuple[int, str, bool]:
 
 
 def detect_threats(data: dict) -> list:
-    """Kiểm tra các ngưỡng thiên tai, bão lũ, thời tiết cực đoan tại Hà Nội."""
+    """Kiểm tra các ngưỡng thiên tai, bão lũ, thời tiết cực đoan tại Hà Nội (Cơ chế Chốt chặn kép)."""
     threats = []
     current = data.get("current", {})
     weather_id = current.get("weather", [{}])[0].get("id", 0)
@@ -103,97 +103,108 @@ def detect_threats(data: dict) -> list:
     feels_like = current.get("main", {}).get("feels_like", 25)
     temp = current.get("main", {}).get("temp", 25)
 
-    # 1. Dông bão / Lốc xoáy / Gió giật mạnh
-    if (200 <= weather_id <= 232) or wind_gust >= 50 or wind_spd >= 40 or weather_id in [771, 781]:
-        peak_wind = round(max(wind_gust, wind_spd))
-        threats.append({
-            "type": "STORM",
-            "title": "⛈️ DÔNG LỐC & GIÓ GIẬT NGUY HIỂM",
-            "detail": f"Gió giật cực đại: {peak_wind} km/h. Sấm sét, dông lốc mạnh.",
-            "guide": (
-                "• Hạn chế ra đường, tránh xa cây cổ thụ, cột điện, biển quảng cáo lớn.\n"
-                "• Tìm nơi trú ẩn an toàn, ngắt các thiết bị điện ngoài trời."
-            )
-        })
-
-    # 2. Mưa rất lớn / Nguy cơ ngập úng diện rộng
     forecast_rain_3h = 0.0
     forecast_list = data.get("forecast", {}).get("list", [])
     if forecast_list:
         forecast_rain_3h = forecast_list[0].get("rain", {}).get("3h", 0.0)
 
-    if rain_1h >= 25 or forecast_rain_3h >= 35 or weather_id in [502, 503, 504]:
-        total_m = max(rain_1h, forecast_rain_3h)
+    # 1. Dông lốc & Gió giật nguy hiểm (Chốt chặn kép: Không kích hoạt nếu chỉ có sấm mà gió nhẹ)
+    has_strong_wind = (
+        wind_gust >= 50
+        or wind_spd >= 40
+        or (200 <= weather_id <= 232 and wind_gust >= 45)
+        or (weather_id in [771, 781] and (wind_gust >= 35 or wind_spd >= 30))
+    )
+    if has_strong_wind:
+        peak_wind = round(max(wind_gust, wind_spd))
         threats.append({
-            "type": "FLOOD",
-            "title": "🌊 MƯA LỚN - NGUY CƠ NGẬP ÚNG DIỆN RỘNG",
-            "detail": f"Lượng mưa đo được/dự báo: ~{round(total_m, 1)} mm. Mưa như trút nước.",
+            "type": "STORM",
+            "title": "⛈️ DÔNG LỐC & GIÓ GIẬT NGUY HIỂM",
+            "detail": f"Gió giật cực đại: {peak_wind} km/h (Gió duy trì: {round(wind_spd)} km/h). Nguy cơ gãy đổ cây cối, biển bảng.",
             "guide": (
-                "• Đề phòng ngập sâu tại các tuyến phố trũng thấp của Hà Nội.\n"
-                "• Chú ý các miệng cống ngập nước, thận trọng khi điều khiển phương tiện."
+                "• Hạn chế ra đường, tránh xa cây cổ thụ, cột điện, biển quảng cáo lớn.\n"
+                "• Tìm nơi trú ẩn kiên cố, đóng chặt cửa kính và ngắt thiết bị điện ngoài trời."
             )
         })
 
-    # 3. Nhiệt độ cực đoan (Sốc nhiệt / Rét đậm)
-    if feels_like >= 42 or temp >= 39:
+    # 2. Mưa rất lớn / Nguy cơ ngập úng diện rộng (Dựa hoàn toàn trên lượng mưa mm thực tế/dự báo)
+    if rain_1h >= 35 or forecast_rain_3h >= 55:
+        if rain_1h >= 35 and forecast_rain_3h >= 55:
+            rain_detail = f"Mưa hiện tại: ~{round(rain_1h, 1)} mm/1h | Dự báo 3h tới: ~{round(forecast_rain_3h, 1)} mm."
+        elif rain_1h >= 35:
+            rain_detail = f"Lượng mưa thực tế đang rất lớn: ~{round(rain_1h, 1)} mm trong 1 giờ qua."
+        else:
+            rain_detail = f"Dự báo trong 3 giờ tới có mưa rất lớn: ~{round(forecast_rain_3h, 1)} mm (Hiện tại: {round(rain_1h, 1)} mm)."
+
+        threats.append({
+            "type": "FLOOD",
+            "title": "🌊 MƯA RẤT LỚN - NGUY CƠ NGẬP ÚNG DIỆN RỘNG",
+            "detail": rain_detail,
+            "guide": (
+                "• Đề phòng ngập sâu tại các tuyến phố trũng thấp và hầm chui của Hà Nội.\n"
+                "• Chú ý các miệng cống ngập nước, hạn chế đi qua vùng ngập sâu tránh chết máy."
+            )
+        })
+
+    # 3. Nhiệt độ cực đoan (Sốc nhiệt / Rét hại sâu)
+    if temp >= 39 or (temp >= 38 and feels_like >= 45):
         threats.append({
             "type": "HEATWAVE",
             "title": "🥵 NẮNG NÓNG ĐẶC BIỆT GAY GẮT",
-            "detail": f"Nhiệt độ cảm giác thực tế: {round(feels_like)}°C. Nguy cơ sốc nhiệt cao.",
+            "detail": f"Nhiệt độ ngoài trời: {round(temp)}°C (Cảm giác thực tế: {round(feels_like)}°C). Nguy cơ sốc nhiệt cao.",
             "guide": (
-                "• Tránh làm việc ngoài trời trong khoảng 11h - 16h.\n"
-                "• Bổ sung nước và chất điện giải liên tục."
+                "• Tránh làm việc, di chuyển ngoài trời trong khoảng 11h - 16h.\n"
+                "• Bổ sung nước và chất điện giải liên tục, đề phòng say nắng/đột quỵ nhiệt."
             )
         })
     elif temp <= 10:
         threats.append({
             "type": "COLD",
             "title": "🥶 RÉT ĐẬM - RÉT HẠI NGUY HIỂM",
-            "detail": f"Nhiệt độ ngoài trời giảm sâu còn {round(temp)}°C.",
+            "detail": f"Nhiệt độ ngoài trời giảm sâu còn {round(temp)}°C (Cảm giác như: {round(feels_like)}°C).",
             "guide": (
-                "• Giữ ấm toàn diện (cổ, ngực, bàn chân) đặc biệt với người già và trẻ nhỏ."
+                "• Giữ ấm toàn diện (đầu, cổ, ngực, bàn chân) đặc biệt với người già và trẻ nhỏ.\n"
+                "• Tuyệt đối không đốt than tổ ong/than củi trong phòng kín để sưởi ấm."
             )
         })
 
-    # 4. Bụi mịn PM2.5 ở mức nguy hại
+    # 4. Bụi mịn PM2.5 ở mức nguy hại cao (PM2.5 >= 180 µg/m³, tương đương US AQI >= 230)
     air_list = data.get("air", {}).get("list", [])
     if air_list:
         pm2_5 = air_list[0].get("components", {}).get("pm2_5", 0)
-        aqi_ow = air_list[0].get("main", {}).get("aqi", 0)
         us_aqi, aqi_label, _ = pm25_to_us_aqi(pm2_5)
-        if us_aqi >= 201 or aqi_ow == 5 or pm2_5 >= 150:
+        if pm2_5 >= 180 or us_aqi >= 230:
             threats.append({
                 "type": "POLLUTION",
-                "title": "🟣 Ô NHIỄM KHÔNG KHÍ Ở MỨC NGUY HẠI",
-                "detail": f"Chỉ số AQI: {us_aqi} ({aqi_label}) | Bụi mịn PM2.5: {round(pm2_5, 1)} µg/m³ (Rất độc hại).",
+                "title": "🟣 Ô NHIỄM KHÔNG KHÍ Ở MỨC ĐẶC BIỆT NGUY HẠI",
+                "detail": f"Chỉ số US AQI: {us_aqi} ({aqi_label}) | Bụi mịn PM2.5: {round(pm2_5, 1)} µg/m³.",
                 "guide": (
-                    "• Hạn chế tối đa các hoạt động thể dục, làm việc ngoài trời.\n"
-                    "• Bắt buộc đeo khẩu trang chuyên dụng (N95/KN95) khi phải ra ngoài."
+                    "• Đóng kín cửa sổ, bật máy lọc không khí và hạn chế tối đa hoạt động ngoài trời.\n"
+                    "• Bắt buộc đeo khẩu trang tiêu chuẩn N95/KN95 khi phải ra đường."
                 )
             })
 
-    # 5. Khí áp tụt sâu (Tâm bão / Áp thấp nhiệt đới áp sát)
+    # 5. Khí áp tụt sâu (Hoàn lưu Tâm bão / Áp thấp nhiệt đới thực sự)
     pressure = current.get("main", {}).get("pressure", 1013)
-    if pressure <= 998 and (wind_spd >= 25 or rain_1h > 0 or forecast_rain_3h > 0):
+    if pressure <= 992 and wind_spd >= 35 and (rain_1h >= 15 or forecast_rain_3h >= 30):
         threats.append({
             "type": "LOW_PRESSURE",
             "title": "🌀 TÂM BÃO / ÁP THẤP NHIỆT ĐỚI ÁP SÁT",
-            "detail": f"Khí áp tụt sâu còn {pressure} hPa (Bình thường ~1013 hPa). Vùng tâm bão đang ảnh hưởng trực tiếp.",
+            "detail": f"Khí áp tụt sâu còn {pressure} hPa kèm gió mạnh ({round(wind_spd)} km/h) và mưa lớn.",
             "guide": (
                 "• Theo dõi sát các bản tin khẩn cấp từ Trung tâm Dự báo KTTV Quốc gia.\n"
-                "• Chằng chống cửa sổ, mái tôn, kiểm tra ban công đề phòng gió lốc giật đổ.\n"
+                "• Chằng chống cửa sổ, mái tôn, kiểm tra ban công đề phòng gió bão giật đổ.\n"
                 "• Sạc đầy điện thoại, dự phòng đèn pin và nước sạch phòng mất điện diện rộng."
             )
         })
 
-    # 6. Sương mù dày đặc / Tầm nhìn cực kém
+    # 6. Sương mù dày đặc / Tầm nhìn cực kém (<= 400m)
     visibility = current.get("visibility", 10000)
-    if (visibility <= 1000 or weather_id == 741) and visibility > 0:
-        vis_km = round(visibility / 1000, 1)
+    if 0 < visibility <= 400:
         threats.append({
             "type": "DENSE_FOG",
             "title": "🌫️ SƯƠNG MÙ DÀY ĐẶC - TẦM NHÌN NGUY HIỂM",
-            "detail": f"Tầm nhìn xa giảm xuống dưới {vis_km} km. Mù mịt nghiêm trọng.",
+            "detail": f"Tầm nhìn xa giảm sâu xuống còn {visibility} m. Mù mịt nghiêm trọng.",
             "guide": (
                 "• Bật đèn sương mù/đèn chiếu gần, giảm tốc độ và giữ khoảng cách an toàn khi lái xe.\n"
                 "• Đặc biệt cẩn trọng khi qua các cây cầu lớn (Nhật Tân, Thăng Long, Thanh Trì) và cao tốc Nội Bài."
@@ -202,7 +213,7 @@ def detect_threats(data: dict) -> list:
 
     # 7. Mưa đá (Hail)
     desc = current.get("weather", [{}])[0].get("description", "").lower()
-    if weather_id == 511 or "đá" in desc or "hail" in desc:
+    if weather_id == 511 or "mưa đá" in desc or "hail" in desc:
         threats.append({
             "type": "HAIL",
             "title": "🧊 CẢNH BÁO MƯA ĐÁ NGUY HIỂM",
