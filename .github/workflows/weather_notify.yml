@@ -9,6 +9,7 @@ jobs:
     name: Gửi thông báo thời tiết
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
 
     steps:
       - name: 📥 Checkout repository
@@ -24,6 +25,7 @@ jobs:
         run: pip install -r weather_bot/requirements.txt
 
       - name: 🌤️ Chạy Weather Bot
+        continue-on-error: true
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

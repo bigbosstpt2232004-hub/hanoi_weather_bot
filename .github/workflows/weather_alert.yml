@@ -9,6 +9,7 @@ jobs:
     name: Quét thiên tai và thời tiết bất thường
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
 
     steps:
       - name: 📥 Checkout repository
@@ -32,6 +33,7 @@ jobs:
             alert-state-
 
       - name: 🚨 Quét hiểm họa & Phát cảnh báo khẩn cấp
+        continue-on-error: true
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
